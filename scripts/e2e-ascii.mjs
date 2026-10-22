@@ -97,7 +97,7 @@ const backends = await page.evaluate(async () => {
       const doc = structuredClone(base);
       const e = d.createEffect('ascii');
       for (const [k, v] of Object.entries(params)) e.params[k] = typeof v === 'number' ? { static: v } : v;
-      Object.assign(e.colors, colors);
+      for (const [k, v] of Object.entries(colors)) e.colors[k] = { static: v };
       if (where === 'adjust') {
         const layer = d.createAdjustmentLayer('ascii');
         layer.effects = [e];
@@ -187,7 +187,7 @@ await page.evaluate(() => {
   window.__ascii.flat = (v) => {
     const doc = structuredClone(window.__glyphix.state().doc);
     const bg = doc.comp.layers.find((l) => l.id === 'bg');
-    bg.fill = { kind: 'solid', color: [v, v, v, 1] };
+    bg.fill = { kind: 'solid', color: { static: [v, v, v, 1] } };
     doc.comp.layers = [bg];
     return doc;
   };

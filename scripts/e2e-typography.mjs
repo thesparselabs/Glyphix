@@ -61,7 +61,7 @@ await page.getByRole('group', { name: 'Fill type' }).getByRole('button', { name:
 await page.getByRole('switch', { name: 'Outline' }).click();
 await page.getByRole('switch', { name: 'Text shadow' }).click();
 layer = await selected();
-check('gradient, outline and shadow are stored', !!layer.gradient && layer.outline?.width > 0 && layer.shadow?.blur >= 0, JSON.stringify({ g: !!layer.gradient, o: layer.outline?.width, s: layer.shadow?.blur }));
+check('gradient, outline and shadow are stored', !!layer.gradient && layer.outline?.width?.static > 0 && layer.shadow?.blur?.static >= 0, JSON.stringify({ g: !!layer.gradient, o: layer.outline?.width, s: layer.shadow?.blur }));
 
 // --- Render helper: two independent backends (preview path and export path) at 960×540.
 await page.evaluate(async () => {
@@ -119,7 +119,7 @@ for (const kind of ['enter', 'exit', 'loop']) {
         const doc = structuredClone(window.__glyphix.state().doc);
         doc.comp.layers = doc.comp.layers.filter((l) => l.type !== 'image'); // text over the background only
         const l = doc.comp.layers.find((x) => x.id === textId);
-        l.text = 'Kinetic type\nmoves well';
+        l.text = { static: 'Kinetic type\nmoves well' };
         l.motion = { enter: null, exit: null, loop: null };
         let tMid = 2;
         let tRest = 2;
@@ -159,13 +159,13 @@ const atlas = await page.evaluate(async (textId) => {
     doc.comp.layers = doc.comp.layers.filter((l) => l.type === 'background');
     BUNDLED_FONTS.forEach((f, i) =>
       weights.forEach((weight, j) =>
-        doc.comp.layers.push({ ...structuredClone(proto), id: `atlas-${i}-${j}`, fontId: f.id, weight, fontSize: 14, text: ascii, motion: { enter: null, exit: null, loop: null }, transform: { ...proto.transform, y: { static: 40 + (i * weights.length + j) * 22 } } }),
+        doc.comp.layers.push({ ...structuredClone(proto), id: `atlas-${i}-${j}`, fontId: f.id, weight, fontSize: 14, text: { static: ascii }, motion: { enter: null, exit: null, loop: null }, transform: { ...proto.transform, y: { static: 40 + (i * weights.length + j) * 22 } } }),
       ),
     );
     return doc;
   };
   // Glyphs with an outline (a few ASCII characters are empty in some fonts).
-  const expected = (doc) => doc.comp.layers.reduce((n, l) => n + (l.type === 'text' ? fonts.layout(l).glyphs.filter((g) => g.glyph).length : 0), 0);
+  const expected = (doc) => doc.comp.layers.reduce((n, l) => n + (l.type === 'text' ? fonts.layout({ ...l, text: l.text.static }).glyphs.filter((g) => g.glyph).length : 0), 0);
   const gen0 = fonts.generation;
   const s1 = scene([300, 500, 800]);
   const a = await window.__typo.compare(s1, 2, 2);
@@ -247,7 +247,7 @@ const restored = await page.evaluate(async (id) => {
   const alert = document.querySelector('[role=alert]')?.textContent ?? null;
   if (!fontLibrary.info(id)) return { found: !!l, registered: false, alert };
   await fontLibrary.load(id);
-  return { found: !!l, family: fontLibrary.info(id)?.family, layout: !!(l && fontLibrary.layout(l)), alert };
+  return { found: !!l, family: fontLibrary.info(id)?.family, layout: !!(l && fontLibrary.layout({ ...l, text: l.text.static })), alert };
 }, uploadedId);
 check('uploaded font survives a reload', restored.found && restored.family === 'Syne' && restored.layout, JSON.stringify(restored));
 

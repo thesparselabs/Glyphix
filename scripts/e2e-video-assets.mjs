@@ -216,7 +216,7 @@ if (vid) {
         Object.assign(doc.comp, { width: 1920, height: 1080, duration: 5 });
         doc.comp.layers = [{
           ...src, id: 'V', assetId: id, video: defaultClip(5, doc.comp), crop: { x: 0, y: 0, w: 1, h: 1 },
-          width: 1920, height: 1080, radius: 0, shadow: null, border: null, effects: [],
+          width: 1920, height: 1080, radius: { static: 0 }, shadow: null, border: null, effects: [],
           frame: { kind: 'none', url: '' },
           tilt: { rotateX: { static: 0 }, rotateY: { static: 0 }, perspective: src.tilt.perspective },
           motion: { enter: null, exit: null, loop: null }, opacity: { static: 1 },

@@ -67,6 +67,6 @@ export function applyAsciiPreset(effect: Effect, preset: AsciiPreset): Effect {
   return {
     ...effect,
     params: { ...effect.params, ...Object.fromEntries(Object.entries(preset.params).map(([k, v]) => [k, { static: v }])) },
-    colors: { ...effect.colors, ...Object.fromEntries(Object.entries(preset.colors).map(([k, c]) => [k, [...c] as Color])) },
+    colors: { ...effect.colors, ...Object.fromEntries(Object.entries(preset.colors).map(([k, c]) => [k, { static: [...c] as Color }])) },
   };
 }

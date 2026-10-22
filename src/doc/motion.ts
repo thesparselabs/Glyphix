@@ -53,7 +53,7 @@ export interface StaggerOptions {
 
 export interface EnterMotion {
   preset: EnterPreset;
-  /** Seconds from comp start. */
+  /** Seconds from the layer's in point (comp start for layers that start at 0). */
   start: number;
   /** Seconds; for per-glyph text presets this is the whole line's duration. */
   duration: number;
@@ -63,7 +63,7 @@ export interface EnterMotion {
 
 export interface ExitMotion {
   preset: ExitPreset;
-  /** Seconds before the end of the comp when the exit finishes (0 = right at the end). */
+  /** Seconds before the layer's out point (the comp end by default) when the exit finishes (0 = right at the out point). */
   endOffset: number;
   duration: number;
   easing: Easing;

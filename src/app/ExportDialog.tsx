@@ -17,6 +17,7 @@ const FORMATS: { value: ExportFormat; label: string }[] = [
   { value: 'mp4', label: 'MP4 video' },
   { value: 'webm', label: 'WebM (transparent)' },
   { value: 'png-seq', label: 'PNG sequence (.zip)' },
+  { value: 'lottie', label: 'Lottie' },
 ];
 
 /** The ASCII text export is a dialog format of its own (it has no scale, and only exists when the doc has an ASCII effect). */
@@ -78,6 +79,7 @@ export function ExportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   // A saved "ASCII text" choice falls back to PNG in a doc without an ASCII effect.
   const fmt: DialogFormat = settings.format === ASCII_FORMAT && !asciiEffects.length ? 'png' : settings.format;
   const isAscii = fmt === ASCII_FORMAT;
+  const isLottie = fmt === 'lottie';
   const k = kind(isAscii ? 'png-seq' : (fmt as ExportFormat));
   const scales = SCALES[k].filter((s) => k !== 'video' || Math.max(comp.width, comp.height) * s <= MAX_VIDEO_DIM);
   const scale = scales.includes(settings.scale) ? settings.scale : (scales.find((s) => s === 1) ?? scales[0]!);
@@ -186,7 +188,9 @@ export function ExportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
         <DialogHeader>
           <DialogTitle>Export</DialogTitle>
           <DialogDescription>
-            {isAscii
+            {isLottie
+              ? `The whole ${comp.duration}s as a Lottie animation (.json): text as vector shapes, images embedded.`
+              : isAscii
               ? ascii.output === 'copy'
                 ? `The ASCII at ${time.toFixed(2)}s as plain text, cell for cell as drawn.`
                 : `${frameCount} frames (${comp.duration}s at ${comp.fps} fps) of text, cell for cell as drawn.`
@@ -217,7 +221,12 @@ export function ExportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
               </p>
             </>
           )}
-          {!isAscii && (
+          {isLottie && (
+            <p className="text-xs text-dim">
+              Plays in Lottie players (tested with lottie-web). Effects, shadows, glow, 3D tilt and video can't be shown in Lottie; after the export, a list names what was left out.
+            </p>
+          )}
+          {!isAscii && !isLottie && (
           <div className="space-y-1.5">
             <div className="flex items-baseline justify-between text-xs font-medium text-dim">
               <span>Size</span>
@@ -278,7 +287,20 @@ export function ExportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
             <p role="status" className="text-sm text-emerald-300">
               Saved {result.filename} · {result.width}×{result.height} · {fmtBytes(result.blob.size)} · {(result.ms / 1000).toFixed(1)}s
               {result.note && <span className="mt-1 block text-amber-300">{result.note}</span>}
+              {result.omitted && result.omitted.length === 0 && <span className="mt-1 block">Everything in the scene is included.</span>}
             </p>
+          )}
+          {result?.omitted && result.omitted.length > 0 && (
+            <div className="space-y-1">
+              <h3 id="export-left-out" className="text-xs font-medium text-amber-300">
+                Left out ({result.omitted.length})
+              </h3>
+              <ul role="list" aria-labelledby="export-left-out" tabIndex={0} className="max-h-40 list-disc space-y-0.5 overflow-y-auto pl-5 text-xs text-zinc-300">
+                {result.omitted.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            </div>
           )}
           {error && (
             <p role="alert" className="text-sm text-red-300">

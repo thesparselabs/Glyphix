@@ -5,6 +5,8 @@ import { audioSegments, evaluate, type Doc } from '@/doc';
 import { createBackend, type RenderBackend } from '@/render/backend';
 import { fontLibrary } from '@/text/fontLibrary';
 import { MIX_CHANNELS, MIX_RATE, mixAudio, type AudioMix } from './audioMix';
+import { safeName } from './fileName';
+import { exportLottie } from './lottie';
 
 // Export runs on the main thread with its own backend instance (full-resolution assets) and a
 // fixed timestep (t = i / fps, never drops frames). The same evaluator + renderer as the preview,
@@ -213,7 +215,7 @@ export function downloadBlob(blob: Blob, filename: string) {
 // ---------------------------------------------------------------------------
 // Unified export (used by the Export dialog)
 
-export type ExportFormat = 'png' | 'jpeg' | 'webp' | 'mp4' | 'webm' | 'png-seq' | 'gif';
+export type ExportFormat = 'png' | 'jpeg' | 'webp' | 'mp4' | 'webm' | 'png-seq' | 'gif' | 'lottie';
 
 export interface ExportSettings {
   format: ExportFormat;
@@ -239,6 +241,8 @@ export interface ExportResult {
   height: number;
   /** e.g. "WebP isn't supported here; saved PNG instead". */
   note: string | null;
+  /** Lottie: parts of the scene the file leaves out, one readable line each. */
+  omitted?: string[];
 }
 
 const STILL_MIME: Record<'png' | 'jpeg' | 'webp', string> = { png: 'image/png', jpeg: 'image/jpeg', webp: 'image/webp' };
@@ -249,7 +253,7 @@ const withoutBackground = (doc: Doc): Doc => ({
   comp: { ...doc.comp, layers: doc.comp.layers.map((l) => (l.type === 'background' ? { ...l, visible: false } : l)) },
 });
 
-export const safeName = (doc: Doc) => doc.name.trim().replace(/[\\/:*?"<>|\u0000-\u001f]+/g, '-').slice(0, 80) || 'Untitled';
+export { safeName } from './fileName';
 
 export async function exportStill(doc: Doc, settings: Pick<ExportSettings, 'format' | 'scale' | 'quality' | 'transparent' | 'time'>, opts: ExportOptions = {}): Promise<ExportResult> {
   const started = performance.now();
@@ -385,6 +389,8 @@ export async function runExport(doc: Doc, settings: ExportSettings, opts: Export
       return exportGif(doc, settings, opts);
     case 'png-seq':
       return exportPngSequence(doc, settings, opts);
+    case 'lottie':
+      return exportLottie(doc, opts);
     case 'mp4':
     case 'webm': {
       const webm = settings.format === 'webm';

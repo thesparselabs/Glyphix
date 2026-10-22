@@ -1,15 +1,12 @@
 // Effect stack for any layer: add, reorder, switch on/off, remove, and edit (keyframable) params.
 import { useState } from 'react';
-import { ArrowDown, ArrowUp, Diamond, Plus, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverMenuItem, PopoverTrigger } from '@/components/wensity/popover';
 import { Switch } from '@/components/wensity/switch';
 import {
-  addKey,
   createEffect,
   EFFECTS,
   effectDef,
-  keyAt,
-  removeKey,
   sampleProp,
   setValueAt,
   applyAsciiPreset,
@@ -25,6 +22,7 @@ import {
 import { charsetGlyphs, CHARSETS } from '@/render/three/asciiAtlas';
 import { asciiFont } from '@/render/three/asciiFonts';
 import { FontPicker } from './FontPicker';
+import { KeyButton, PropControl } from './KeyButton';
 import { useEditor } from './store';
 import { Button, ColorField, Field, IconButton, inputClass, Section } from './ui';
 import { Slider } from '@/components/wensity/slider';
@@ -67,27 +65,11 @@ function ParamRow({
   const eps = useKeyEps();
   const now = () => time ?? useEditor.getState().time;
   const value = sampleProp(prop, now());
-  const key = time === null ? null : keyAt(prop, time, eps);
   const animated = 'track' in prop;
   const keyCount = animated ? prop.track.keys.length : 0;
   const name = `${effectLabel} ${def.label.toLowerCase()}`;
   const set = (v: number) => onChange(setValueAt(prop, now(), v, eps), `${effectLabel}: ${def.label}`);
-  const toggleKey = () => {
-    const t = now();
-    onChange(key ? removeKey(prop, t, eps) : addKey(prop, t, sampleProp(prop, t), eps), key ? 'Remove keyframe' : 'Add keyframe');
-  };
-  const keyButton = def.fixed ? null : (
-    <button
-      type="button"
-      onClick={toggleKey}
-      aria-pressed={!!key}
-      aria-label={key ? `Remove ${name} keyframe at playhead` : `Add ${name} keyframe at playhead`}
-      title={key ? 'Remove keyframe at playhead' : animated ? 'Add keyframe at playhead' : 'Animate: add a keyframe at the playhead'}
-      className={`grid size-5 place-items-center rounded outline-none focus-visible:ring-2 focus-visible:ring-accent ${animated ? 'text-amber-300' : 'text-zinc-500 hover:text-zinc-200'}`}
-    >
-      <Diamond size={11} fill={key ? 'currentColor' : 'none'} />
-    </button>
-  );
+  const keyButton = def.fixed ? null : <KeyButton prop={prop} name={name} time={time} onChange={onChange} />;
 
   if (def.options)
     return (
@@ -225,9 +207,19 @@ function EffectCard({ effects, index, edit }: { effects: Effect[]; index: number
           {def.colors.length > 0 && (
             <div className="grid grid-cols-2 gap-2">
               {def.colors.map((c) => (
-                <Field key={c.key} label={c.label.replace(/ colour$/, '')}>
-                  <ColorField label={`${def.label} ${c.label.toLowerCase()}`} value={effect.colors[c.key] ?? c.default} onChange={(v) => edit(`${def.label}: ${c.label}`, [...base, 'colors', c.key], v)} />
-                </Field>
+                <PropControl
+                  key={c.key}
+                  prop={effect.colors[c.key] ?? { static: c.default }}
+                  name={`${def.label} ${c.label.toLowerCase()}`}
+                  label={`${def.label}: ${c.label}`}
+                  onChange={(p, label) => edit(label, [...base, 'colors', c.key], p)}
+                >
+                  {(value, set) => (
+                    <Field label={c.label.replace(/ colour$/, '')}>
+                      <ColorField label={`${def.label} ${c.label.toLowerCase()}`} value={value} onChange={set} />
+                    </Field>
+                  )}
+                </PropControl>
               ))}
             </div>
           )}

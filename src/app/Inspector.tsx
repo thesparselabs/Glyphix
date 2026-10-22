@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { AnimationSection, ORDER_OPTIONS } from './AnimationSection';
 import { EffectsSection } from './EffectsSection';
+import { PropControl } from './KeyButton';
 import { VideoSection } from './VideoSection';
 import { FontPicker } from './FontPicker';
 import { Switch } from '@/components/wensity/switch';
@@ -8,8 +9,17 @@ import { fontLibrary } from '@/text/fontLibrary';
 import { effectiveWeight, namedWeights, WEIGHT_NAMES } from '@/text/fonts';
 import { CropSection, TransformSection } from './TransformSection';
 import {
-  Easings,
   isGlyphPreset,
+  matchesStill,
+  resolveProps,
+  sampleValue,
+  stillBorder,
+  stillFill,
+  stillGradient,
+  stillOutline,
+  stillShadow,
+  stillTextShadow,
+  type Resolved,
   isPlaced,
   NO_TILT,
   type AdjustmentLayer,
@@ -17,7 +27,6 @@ import {
   type BackgroundLayer,
   type Color,
   type Doc,
-  type Easing,
   type FrameKind,
   type ImageLayer,
   type Layer,
@@ -37,18 +46,10 @@ import {
 } from '@/styling/presets';
 import { extractPalette, samplePixels, suggestBackgrounds } from '@/styling/palette';
 import { layerIndex, useEditor } from './store';
+import { EasingButton } from './EasingEditor';
+import { KeyEasing } from './timeline/KeyEasing';
+import { useKeySelection } from './timeline/keySelection';
 import { ColorField, Field, inputClass, PresetGrid, Section, Segmented, SelectField, SliderField } from './ui';
-
-const EASING_PRESETS: Record<string, Easing> = {
-  'Ease out back': Easings.easeOutBack,
-  'Ease out cubic': Easings.easeOutCubic,
-  'Ease in-out cubic': Easings.easeInOutCubic,
-  Spring: { kind: 'spring', mass: 1, stiffness: 170, damping: 12 },
-  Linear: Easings.linear,
-  Steps: { kind: 'steps', n: 4 },
-};
-
-const easingName = (e: Easing) => Object.entries(EASING_PRESETS).find(([, v]) => JSON.stringify(v) === JSON.stringify(e))?.[0] ?? 'Custom';
 
 type Edit = (label: string, path: (string | number)[], value: unknown) => void;
 
@@ -115,8 +116,29 @@ function useEdit(layer: Layer, index: number): Edit {
 
 function LayerInspector({ layer, index }: { layer: Exclude<Layer, BackgroundLayer>; index: number }) {
   const edit = useEdit(layer, index);
-  if (layer.type === 'adjustment') return <AdjustmentInspector layer={layer} edit={edit} />;
-  return layer.type === 'text' ? <TextInspector layer={layer} edit={edit} /> : <ImageInspector layer={layer} index={index} edit={edit} />;
+  const keys = useKeySelection((s) => (s.layerId === layer.id ? s.keys.size : 0));
+  const keyframes = keys > 0 && (
+    <Section title="Keyframes">
+      <p className="text-xs text-dim">
+        {keys} keyframe{keys === 1 ? '' : 's'} selected (E)
+      </p>
+      <Field label="Easing to the next key">
+        <KeyEasing side="left" />
+      </Field>
+    </Section>
+  );
+  return (
+    <>
+      {keyframes}
+      {layer.type === 'adjustment' ? (
+        <AdjustmentInspector layer={layer} edit={edit} />
+      ) : layer.type === 'text' ? (
+        <TextInspector layer={layer} edit={edit} />
+      ) : (
+        <ImageInspector layer={layer} index={index} edit={edit} />
+      )}
+    </>
+  );
 }
 
 function AdjustmentInspector({ layer, edit }: { layer: AdjustmentLayer; edit: Edit }) {
@@ -205,10 +227,10 @@ function BackgroundSection({ layer, index }: { layer: BackgroundLayer; index: nu
 
   const switchKind = (kind: BackgroundFill['kind']) => {
     if (kind === fill.kind) return;
-    const first = firstColor(fill);
-    if (kind === 'solid') setFill('Solid background', { kind: 'solid', color: first });
-    else if (kind === 'linear') setFill('Gradient background', BACKGROUND_PRESETS[0]!.fill);
-    else if (kind === 'mesh') setFill('Mesh background', BACKGROUND_PRESETS.find((p) => p.fill.kind === 'mesh')!.fill);
+    const first = firstColor(resolveProps(fill, useEditor.getState().time));
+    if (kind === 'solid') setFill('Solid background', { kind: 'solid', color: { static: first } });
+    else if (kind === 'linear') setFill('Gradient background', stillFill(BACKGROUND_PRESETS[0]!.fill));
+    else if (kind === 'mesh') setFill('Mesh background', stillFill(BACKGROUND_PRESETS.find((p) => p.fill.kind === 'mesh')!.fill));
     else if (images[0]) setFill('Image background', { kind: 'image', assetId: images[0], blur: 40, dim: 0.15 });
   };
 
@@ -228,24 +250,34 @@ function BackgroundSection({ layer, index }: { layer: BackgroundLayer; index: nu
 
       {suggestions.length > 0 && (
         <Field label="From your screenshot">
-          <Swatches fills={suggestions} onPick={(f) => setFill('Background from screenshot', f)} />
+          <Swatches fills={suggestions} current={fill} onPick={(f) => setFill('Background from screenshot', stillFill(f))} />
         </Field>
       )}
       <Field label="Presets">
-        <Swatches fills={BACKGROUND_PRESETS.map((p) => p.fill)} onPick={(f) => setFill('Background preset', f)} />
+        <Swatches fills={BACKGROUND_PRESETS.map((p) => p.fill)} current={fill} onPick={(f) => setFill('Background preset', stillFill(f))} />
       </Field>
 
       {fill.kind === 'solid' && (
-        <Field label="Colour">
-          <ColorField value={fill.color} onChange={(c) => edit('Background colour', ['fill', 'color'], c)} />
-        </Field>
+        <PropControl prop={fill.color} name="background colour" label="Background colour" onChange={(p, l) => edit(l, ['fill', 'color'], p)}>
+          {(v, set) => (
+            <Field label="Colour">
+              <ColorField value={v} onChange={set} />
+            </Field>
+          )}
+        </PropControl>
       )}
       {fill.kind === 'linear' && (
         <>
-          <SliderField label="Angle" hint={`${Math.round(fill.angle)}°`} min={0} max={360} value={fill.angle} onValueChange={(v) => edit('Gradient angle', ['fill', 'angle'], v)} />
+          <PropControl prop={fill.angle} name="gradient angle" label="Gradient angle" onChange={(p, l) => edit(l, ['fill', 'angle'], p)}>
+            {(v, set) => <SliderField label="Angle" hint={`${Math.round(v)}°`} min={0} max={360} value={v} onValueChange={set} />}
+          </PropControl>
           <div className="flex gap-2">
             {fill.stops.map((stop, i) => (
-              <ColorField key={i} label={`Stop ${i + 1}`} value={stop.color} onChange={(c) => edit('Gradient colour', ['fill', 'stops', i, 'color'], c)} />
+              <div key={i} className="min-w-0 flex-1">
+                <PropControl prop={stop.color} name={`gradient stop ${i + 1} colour`} label="Gradient colour" onChange={(p, l) => edit(l, ['fill', 'stops', i, 'color'], p)}>
+                  {(v, set) => <ColorField label={`Stop ${i + 1}`} value={v} onChange={set} />}
+                </PropControl>
+              </div>
             ))}
           </div>
         </>
@@ -253,7 +285,11 @@ function BackgroundSection({ layer, index }: { layer: BackgroundLayer; index: nu
       {fill.kind === 'mesh' && (
         <div className="flex gap-2">
           {fill.points.map((p, i) => (
-            <ColorField key={i} label={`Point ${i + 1}`} value={p.color} onChange={(c) => edit('Mesh colour', ['fill', 'points', i, 'color'], c)} />
+            <div key={i} className="min-w-0 flex-1">
+              <PropControl prop={p.color} name={`mesh point ${i + 1} colour`} label="Mesh colour" onChange={(pr, l) => edit(l, ['fill', 'points', i, 'color'], pr)}>
+                {(v, set) => <ColorField label={`Point ${i + 1}`} value={v} onChange={set} />}
+              </PropControl>
+            </div>
           ))}
         </div>
       )}
@@ -267,23 +303,28 @@ function BackgroundSection({ layer, index }: { layer: BackgroundLayer; index: nu
   );
 }
 
-const firstColor = (f: BackgroundFill): Color =>
+const firstColor = (f: Resolved<BackgroundFill>): Color =>
   f.kind === 'solid' ? f.color : f.kind === 'linear' ? (f.stops[0]?.color ?? [0, 0, 0, 1]) : f.kind === 'mesh' ? (f.points[0]?.color ?? [0, 0, 0, 1]) : [0.1, 0.1, 0.12, 1];
 
-function Swatches({ fills, onPick }: { fills: BackgroundFill[]; onPick: (f: BackgroundFill) => void }) {
+/** Preset swatches use plain values; the one matching the document's current (non-animated) fill is highlighted. */
+function Swatches({ fills, current, onPick }: { fills: Resolved<BackgroundFill>[]; current: BackgroundFill; onPick: (f: Resolved<BackgroundFill>) => void }) {
   return (
     <div className="grid grid-cols-4 gap-1.5">
-      {fills.map((f, i) => (
-        <button
-          key={i}
-          type="button"
-          aria-label={`Apply ${f.kind} background ${i + 1}`}
-          onClick={() => onPick(f)}
-          className="aspect-video rounded-md ring-1 ring-line transition hover:ring-2 hover:ring-accent"
-          // Mesh fills are translucent gradients: give them a grey base colour (last layer of the shorthand).
-          style={{ background: f.kind === 'mesh' ? `${fillToCss(f)}, #888` : fillToCss(f) }}
-        />
-      ))}
+      {fills.map((f, i) => {
+        const active = matchesStill(current, f);
+        return (
+          <button
+            key={i}
+            type="button"
+            aria-label={`Apply ${f.kind} background ${i + 1}`}
+            aria-pressed={active}
+            onClick={() => onPick(f)}
+            className={`aspect-video rounded-md transition hover:ring-2 hover:ring-accent ${active ? 'ring-2 ring-accent' : 'ring-1 ring-line'}`}
+            // Mesh fills are translucent gradients: give them a grey base colour (last layer of the shorthand).
+            style={{ background: f.kind === 'mesh' ? `${fillToCss(f)}, #888` : fillToCss(f) }}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -301,7 +342,7 @@ const FRAMES: { value: FrameKind; label: string }[] = [
 function ImageInspector({ layer, index, edit }: { layer: ImageLayer; index: number; edit: Edit }) {
   const doc = useDocForPanels();
   const set = useEditor((s) => s.set);
-  const shadowId = SHADOW_PRESETS.find((p) => JSON.stringify(p.shadow) === JSON.stringify(layer.shadow))?.id ?? 'custom';
+  const shadowId = SHADOW_PRESETS.find((p) => matchesStill(layer.shadow, p.shadow))?.id ?? 'custom';
   const tiltId = TILT_PRESETS.find((p) => JSON.stringify(p.tilt) === JSON.stringify(layer.tilt))?.id ?? 'custom';
   const rx = 'static' in layer.tilt.rotateX ? layer.tilt.rotateX.static : 0;
   const ry = 'static' in layer.tilt.rotateY ? layer.tilt.rotateY.static : 0;
@@ -325,21 +366,33 @@ function ImageInspector({ layer, index, edit }: { layer: ImageLayer; index: numb
             max={maxPad}
             value={Math.min(padding, maxPad)}
             onValueChange={(v) => set('Padding', fitWithPaddingPatches(doc, index, v), `${layer.id}:padding`)} />
-        <SliderField label="Corner radius" hint={`${layer.radius}px`} min={0} max={80} value={layer.radius} onValueChange={(v) => edit('Radius', ['radius'], v)} />
+        <PropControl prop={layer.radius} name="corner radius" label="Radius" onChange={(p, l) => edit(l, ['radius'], p)}>
+          {(v, set) => <SliderField label="Corner radius" hint={`${Math.round(v)}px`} min={0} max={80} value={v} onValueChange={set} />}
+        </PropControl>
         <div className="flex items-end gap-2">
-          <div className="flex-1">
-            <SliderField
-              label="Border"
-              hint={layer.border ? `${layer.border.width}px` : 'off'}
-              min={0}
-              max={24}
-              value={layer.border?.width ?? 0}
-              onValueChange={(w) => edit('Border', ['border'], w === 0 ? null : { width: w, color: layer.border?.color ?? [1, 1, 1, 0.35] })}
-            />
+          <div className="min-w-0 flex-1">
+            {layer.border ? (
+              <PropControl prop={layer.border.width} name="border width" label="Border" onChange={(p, l) => edit(l, ['border'], { ...layer.border!, width: p })}>
+                {(w, set) => (
+                  <SliderField
+                    label="Border"
+                    hint={`${w}px`}
+                    min={0}
+                    max={24}
+                    value={w}
+                    onValueChange={(nw) => (nw === 0 && 'static' in layer.border!.width ? edit('Border', ['border'], null) : set(nw))}
+                  />
+                )}
+              </PropControl>
+            ) : (
+              <SliderField label="Border" hint="off" min={0} max={24} value={0} onValueChange={(w) => w > 0 && edit('Border', ['border'], stillBorder({ width: w, color: [1, 1, 1, 0.35] }))} />
+            )}
           </div>
           {layer.border && (
-            <div className="w-10">
-              <ColorField label="Border colour" alpha value={layer.border.color} onChange={(c) => edit('Border colour', ['border', 'color'], c)} />
+            <div className="w-14">
+              <PropControl prop={layer.border.color} name="border colour" label="Border colour" onChange={(p, l) => edit(l, ['border', 'color'], p)}>
+                {(v, set) => <ColorField label="Border colour" alpha value={v} onChange={set} />}
+              </PropControl>
             </div>
           )}
         </div>
@@ -351,14 +404,23 @@ function ImageInspector({ layer, index, edit }: { layer: ImageLayer; index: numb
         <PresetGrid
           label="Shadow preset"
           value={shadowId}
-          onChange={(id) => edit('Shadow', ['shadow'], SHADOW_PRESETS.find((p) => p.id === id)!.shadow)}
+          onChange={(id) => {
+            const sh = SHADOW_PRESETS.find((p) => p.id === id)!.shadow;
+            edit('Shadow', ['shadow'], sh ? stillShadow(sh) : null);
+          }}
           options={SHADOW_PRESETS.map((p) => ({ value: p.id, label: p.label }))}
         />
         {layer.shadow && (
           <>
-            <SliderField label="Blur" hint={`${layer.shadow.blur}px`} min={0} max={200} value={layer.shadow.blur} onValueChange={(v) => edit('Shadow blur', ['shadow', 'blur'], v)} />
-            <SliderField label="Offset" hint={`${layer.shadow.offsetY}px`} min={-100} max={150} value={layer.shadow.offsetY} onValueChange={(v) => edit('Shadow offset', ['shadow', 'offsetY'], v)} />
-            <SliderField label="Opacity" hint={`${Math.round(layer.shadow.color[3] * 100)}%`} min={0} max={1} step={0.01} value={layer.shadow.color[3]} onValueChange={(v) => edit('Shadow opacity', ['shadow', 'color', 3], v)} />
+            <PropControl prop={layer.shadow.blur} name="shadow blur" label="Shadow blur" onChange={(p, l) => edit(l, ['shadow', 'blur'], p)}>
+              {(v, set) => <SliderField label="Blur" hint={`${Math.round(v)}px`} min={0} max={200} value={v} onValueChange={set} />}
+            </PropControl>
+            <PropControl prop={layer.shadow.offsetY} name="shadow offset" label="Shadow offset" onChange={(p, l) => edit(l, ['shadow', 'offsetY'], p)}>
+              {(v, set) => <SliderField label="Offset" hint={`${Math.round(v)}px`} min={-100} max={150} value={v} onValueChange={set} />}
+            </PropControl>
+            <PropControl prop={layer.shadow.color} name="shadow opacity" label="Shadow opacity" onChange={(p, l) => edit(l, ['shadow', 'color'], p)}>
+              {(c, set) => <SliderField label="Opacity" hint={`${Math.round(c[3] * 100)}%`} min={0} max={1} step={0.01} value={c[3]} onValueChange={(a) => set([c[0], c[1], c[2], a])} />}
+            </PropControl>
           </>
         )}
       </Section>
@@ -397,9 +459,13 @@ function TextInspector({ layer, edit }: { layer: TextLayer; edit: Edit }) {
   return (
     <>
       <Section title="Text">
-        <Field label="Content">
-          <textarea className={`${inputClass} min-h-16 resize-y`} value={layer.text} onChange={(e) => edit('Edit text', ['text'], e.target.value)} />
-        </Field>
+        <PropControl prop={layer.text} name="text" label="Edit text" align="start" onChange={(p, l) => edit(l, ['text'], p)}>
+          {(v, set) => (
+            <Field label="Content">
+              <textarea className={`${inputClass} min-h-16 resize-y`} value={v} onChange={(e) => set(e.target.value)} />
+            </Field>
+          )}
+        </PropControl>
         <div className="space-y-1.5">
           <span className="text-xs font-medium text-dim">Font</span>
           <FontPicker
@@ -447,7 +513,11 @@ function TextInspector({ layer, edit }: { layer: TextLayer; edit: Edit }) {
           label="Fill type"
           value={layer.gradient ? 'gradient' : 'solid'}
           onChange={(v) =>
-            edit('Fill', ['gradient'], v === 'gradient' ? { angle: 0, from: layer.color, to: [0.55, 0.85, 1, 1] } : null)
+            edit(
+              'Fill',
+              ['gradient'],
+              v === 'gradient' ? stillGradient({ angle: 0, from: sampleValue(layer.color, useEditor.getState().time), to: [0.55, 0.85, 1, 1] }) : null,
+            )
           }
           options={[
             { value: 'solid', label: 'Solid' },
@@ -457,19 +527,33 @@ function TextInspector({ layer, edit }: { layer: TextLayer; edit: Edit }) {
         {layer.gradient ? (
           <>
             <div className="grid grid-cols-2 gap-2">
-              <Field label="From">
-                <ColorField label="Gradient start colour" value={layer.gradient.from} onChange={(c) => edit('Gradient colour', ['gradient', 'from'], c)} />
-              </Field>
-              <Field label="To">
-                <ColorField label="Gradient end colour" value={layer.gradient.to} onChange={(c) => edit('Gradient colour', ['gradient', 'to'], c)} />
-              </Field>
+              <PropControl prop={layer.gradient.from} name="gradient start colour" label="Gradient colour" onChange={(p, l) => edit(l, ['gradient', 'from'], p)}>
+                {(v, set) => (
+                  <Field label="From">
+                    <ColorField label="Gradient start colour" value={v} onChange={set} />
+                  </Field>
+                )}
+              </PropControl>
+              <PropControl prop={layer.gradient.to} name="gradient end colour" label="Gradient colour" onChange={(p, l) => edit(l, ['gradient', 'to'], p)}>
+                {(v, set) => (
+                  <Field label="To">
+                    <ColorField label="Gradient end colour" value={v} onChange={set} />
+                  </Field>
+                )}
+              </PropControl>
             </div>
-            <SliderField label="Angle" hint={`${layer.gradient.angle}°`} min={0} max={360} value={layer.gradient.angle} onValueChange={(v) => edit('Gradient angle', ['gradient', 'angle'], v)} />
+            <PropControl prop={layer.gradient.angle} name="text gradient angle" label="Gradient angle" onChange={(p, l) => edit(l, ['gradient', 'angle'], p)}>
+              {(v, set) => <SliderField label="Angle" hint={`${Math.round(v)}°`} min={0} max={360} value={v} onValueChange={set} />}
+            </PropControl>
           </>
         ) : (
-          <Field label="Colour">
-            <ColorField label="Text colour" value={layer.color} onChange={(c) => edit('Text colour', ['color'], c)} />
-          </Field>
+          <PropControl prop={layer.color} name="text colour" label="Text colour" onChange={(p, l) => edit(l, ['color'], p)}>
+            {(v, set) => (
+              <Field label="Colour">
+                <ColorField label="Text colour" value={v} onChange={set} />
+              </Field>
+            )}
+          </PropControl>
         )}
       </Section>
 
@@ -477,16 +561,22 @@ function TextInspector({ layer, edit }: { layer: TextLayer; edit: Edit }) {
         <Switch
           switchSize="sm"
           checked={!!layer.outline}
-          onCheckedChange={(on) => edit('Outline', ['outline'], on ? { width: Math.max(1, Math.round(layer.fontSize * 0.04)), color: [0, 0, 0, 1] } : null)}
+          onCheckedChange={(on) => edit('Outline', ['outline'], on ? stillOutline({ width: Math.max(1, Math.round(layer.fontSize * 0.04)), color: [0, 0, 0, 1] }) : null)}
           label="Outline"
           labelClassName="text-xs text-dim"
         />
         {layer.outline && (
           <>
-            <SliderField label="Width" hint={`${layer.outline.width}px`} min={1} max={Math.max(4, Math.round(layer.fontSize * 0.2))} value={layer.outline.width} onValueChange={(v) => edit('Outline width', ['outline', 'width'], v)} />
-            <Field label="Colour">
-              <ColorField label="Outline colour" value={layer.outline.color} onChange={(c) => edit('Outline colour', ['outline', 'color'], c)} />
-            </Field>
+            <PropControl prop={layer.outline.width} name="outline width" label="Outline width" onChange={(p, l) => edit(l, ['outline', 'width'], p)}>
+              {(v, set) => <SliderField label="Width" hint={`${Math.round(v * 10) / 10}px`} min={1} max={Math.max(4, Math.round(layer.fontSize * 0.2))} value={v} onValueChange={set} />}
+            </PropControl>
+            <PropControl prop={layer.outline.color} name="outline colour" label="Outline colour" onChange={(p, l) => edit(l, ['outline', 'color'], p)}>
+              {(v, set) => (
+                <Field label="Colour">
+                  <ColorField label="Outline colour" value={v} onChange={set} />
+                </Field>
+              )}
+            </PropControl>
           </>
         )}
       </Section>
@@ -496,7 +586,11 @@ function TextInspector({ layer, edit }: { layer: TextLayer; edit: Edit }) {
           switchSize="sm"
           checked={!!layer.shadow}
           onCheckedChange={(on) =>
-            edit('Text shadow', ['shadow'], on ? { offsetX: 0, offsetY: Math.round(layer.fontSize * 0.05), blur: Math.round(layer.fontSize * 0.08), color: [0, 0, 0, 0.5] } : null)
+            edit(
+              'Text shadow',
+              ['shadow'],
+              on ? stillTextShadow({ offsetX: 0, offsetY: Math.round(layer.fontSize * 0.05), blur: Math.round(layer.fontSize * 0.08), color: [0, 0, 0, 0.5] }) : null,
+            )
           }
           label="Text shadow"
           labelClassName="text-xs text-dim"
@@ -504,13 +598,23 @@ function TextInspector({ layer, edit }: { layer: TextLayer; edit: Edit }) {
         {layer.shadow && (
           <>
             <div className="grid grid-cols-2 gap-2">
-              <SliderField label="X" hint={`${layer.shadow.offsetX}px`} min={-60} max={60} value={layer.shadow.offsetX} onValueChange={(v) => edit('Shadow X', ['shadow', 'offsetX'], v)} />
-              <SliderField label="Y" hint={`${layer.shadow.offsetY}px`} min={-60} max={60} value={layer.shadow.offsetY} onValueChange={(v) => edit('Shadow Y', ['shadow', 'offsetY'], v)} />
+              <PropControl prop={layer.shadow.offsetX} name="text shadow X offset" label="Shadow X" onChange={(p, l) => edit(l, ['shadow', 'offsetX'], p)}>
+                {(v, set) => <SliderField label="X" hint={`${Math.round(v)}px`} min={-60} max={60} value={v} onValueChange={set} />}
+              </PropControl>
+              <PropControl prop={layer.shadow.offsetY} name="text shadow Y offset" label="Shadow Y" onChange={(p, l) => edit(l, ['shadow', 'offsetY'], p)}>
+                {(v, set) => <SliderField label="Y" hint={`${Math.round(v)}px`} min={-60} max={60} value={v} onValueChange={set} />}
+              </PropControl>
             </div>
-            <SliderField label="Softness" hint={`${layer.shadow.blur}px`} min={0} max={Math.max(4, Math.round(layer.fontSize * 0.2))} value={layer.shadow.blur} onValueChange={(v) => edit('Shadow softness', ['shadow', 'blur'], v)} />
-            <Field label="Colour">
-              <ColorField label="Shadow colour" alpha value={layer.shadow.color} onChange={(c) => edit('Shadow colour', ['shadow', 'color'], c)} />
-            </Field>
+            <PropControl prop={layer.shadow.blur} name="text shadow blur" label="Shadow softness" onChange={(p, l) => edit(l, ['shadow', 'blur'], p)}>
+              {(v, set) => <SliderField label="Softness" hint={`${Math.round(v)}px`} min={0} max={Math.max(4, Math.round(layer.fontSize * 0.2))} value={v} onValueChange={set} />}
+            </PropControl>
+            <PropControl prop={layer.shadow.color} name="text shadow colour" label="Shadow colour" onChange={(p, l) => edit(l, ['shadow', 'color'], p)}>
+              {(v, set) => (
+                <Field label="Colour">
+                  <ColorField label="Shadow colour" alpha value={v} onChange={set} />
+                </Field>
+              )}
+            </PropControl>
           </>
         )}
       </Section>
@@ -521,20 +625,21 @@ function TextInspector({ layer, edit }: { layer: TextLayer; edit: Edit }) {
         ) : (
           <SliderField label="Strength" hint={`${Math.round(glow * 100)}%`} min={0} max={1} step={0.01} value={glow} onValueChange={(v) => edit('Glow', ['glow'], { static: v })} />
         )}
-        <Field label="Colour">
-          <ColorField label="Glow colour" value={layer.glowColor} onChange={(c) => edit('Glow colour', ['glowColor'], c)} />
-        </Field>
+        <PropControl prop={layer.glowColor} name="glow colour" label="Glow colour" onChange={(p, l) => edit(l, ['glowColor'], p)}>
+          {(v, set) => (
+            <Field label="Colour">
+              <ColorField label="Glow colour" value={v} onChange={set} />
+            </Field>
+          )}
+        </PropControl>
       </Section>
 
       <TransformSection layer={layer} edit={edit} />
       {anim && (
         <Section title="Custom glyph animation">
-          <SelectField
-            label="Easing"
-            value={easingName(anim.easing)}
-            options={[...Object.keys(EASING_PRESETS), ...(easingName(anim.easing) === 'Custom' ? ['Custom'] : [])].map((k) => ({ value: k, label: k }))}
-            onValueChange={(k) => EASING_PRESETS[k] && edit('Easing', ['animator', 'easing'], EASING_PRESETS[k])}
-          />
+          <Field label="Easing">
+            <EasingButton label="Glyph easing" value={anim.easing} side="left" onChange={(e) => edit('Easing', ['animator', 'easing'], e)} />
+          </Field>
           <SelectField<StaggerOrder>
             label="Order"
             value={anim.order}

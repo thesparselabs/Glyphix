@@ -4,6 +4,7 @@ import {
   type Doc,
   type ImageLayer,
   type Patch,
+  type Resolved,
   type Shadow,
   type Tilt,
 } from '@/doc';
@@ -19,7 +20,8 @@ export const CANVAS_PRESETS = [
   { id: 'x', label: 'X / Twitter', width: 1600, height: 900 },
 ] as const;
 
-export const SHADOW_PRESETS: { id: string; label: string; shadow: Shadow | null }[] = [
+/** Plain values; apply with `stillShadow`. */
+export const SHADOW_PRESETS: { id: string; label: string; shadow: Resolved<Shadow> | null }[] = [
   { id: 'none', label: 'None', shadow: null },
   { id: 'soft', label: 'Soft', shadow: { blur: 80, offsetX: 0, offsetY: 24, color: [0, 0, 0, 0.3] } },
   { id: 'medium', label: 'Medium', shadow: { blur: 60, offsetX: 0, offsetY: 30, color: [0, 0, 0, 0.45] } },
@@ -42,7 +44,8 @@ export const TILT_PRESETS: { id: string; label: string; tilt: Tilt }[] = [
   { id: 'hero-r', label: 'Hero right', tilt: tilt(18, 20, 2000) },
 ];
 
-export const BACKGROUND_PRESETS: { id: string; fill: BackgroundFill }[] = [
+/** Plain values; apply with `stillFill`. */
+export const BACKGROUND_PRESETS: { id: string; fill: Resolved<BackgroundFill> }[] = [
   { id: 'sunset', fill: { kind: 'linear', angle: 135, stops: [{ offset: 0, color: [0.35, 0.2, 0.95, 1] }, { offset: 0.55, color: [0.85, 0.25, 0.65, 1] }, { offset: 1, color: [1, 0.6, 0.3, 1] }] } },
   { id: 'ocean', fill: { kind: 'linear', angle: 160, stops: [{ offset: 0, color: [0.05, 0.55, 0.85, 1] }, { offset: 1, color: [0.1, 0.15, 0.45, 1] }] } },
   { id: 'mint', fill: { kind: 'linear', angle: 120, stops: [{ offset: 0, color: [0.55, 0.95, 0.75, 1] }, { offset: 1, color: [0.15, 0.6, 0.6, 1] }] } },
@@ -74,8 +77,8 @@ export const BACKGROUND_PRESETS: { id: string; fill: BackgroundFill }[] = [
   { id: 'ink', fill: { kind: 'solid', color: [0.06, 0.06, 0.08, 1] } },
 ];
 
-/** CSS preview of a fill, for swatches. */
-export function fillToCss(fill: BackgroundFill): string {
+/** CSS preview of a fill (plain values: resolve an animated one first), for swatches. */
+export function fillToCss(fill: Resolved<BackgroundFill>): string {
   const c = (col: readonly number[]) => `rgb(${col.slice(0, 3).map((v) => Math.round(v * 255)).join(' ')})`;
   switch (fill.kind) {
     case 'solid':

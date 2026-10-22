@@ -1,12 +1,13 @@
-// Minimal promise wrapper over IndexedDB (no dependency). One database, three stores:
+// Minimal promise wrapper over IndexedDB (no dependency). One database, four stores:
 //   projects: { id, name, createdAt, updatedAt, doc (JSON), thumbnail?: Blob }
 //   assets:   { id, blob }            — image files by asset id, shared across projects
 //   meta:     { key, value }          — e.g. the last opened project
+//   presets:  AnimPreset              — the user's saved animations (added in v2)
 
 const DB_NAME = 'glyphix';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
-export type StoreName = 'projects' | 'assets' | 'meta';
+export type StoreName = 'projects' | 'assets' | 'meta' | 'presets';
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -18,6 +19,7 @@ export function openDb(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains('projects')) db.createObjectStore('projects', { keyPath: 'id' });
       if (!db.objectStoreNames.contains('assets')) db.createObjectStore('assets', { keyPath: 'id' });
       if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta', { keyPath: 'key' });
+      if (!db.objectStoreNames.contains('presets')) db.createObjectStore('presets', { keyPath: 'id' });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);

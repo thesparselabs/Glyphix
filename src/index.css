@@ -609,3 +609,34 @@ body {
 input[type='range'] {
   accent-color: var(--color-accent);
 }
+
+/* Timeline keyframe diamonds are background images, not SVG elements or rotated boxes: each SVG/transform is its
+   own paint chunk, and Chrome re-layerizes every chunk each frame the playhead moves (400 SVG keys: ~13 fps).
+   The shape shows the easing leaving the key: diamond = curve, square = hold, circle = linear. */
+.key-diamond {
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M5 .6 9.4 5 5 9.4.6 5Z' fill='%23d4d4d8' stroke='%2309090b' stroke-opacity='.8'/%3E%3C/svg%3E") center / 11px no-repeat;
+}
+.key-diamond:hover {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M5 .6 9.4 5 5 9.4.6 5Z' fill='%23ffffff' stroke='%2309090b' stroke-opacity='.8'/%3E%3C/svg%3E");
+}
+.key-diamond[aria-pressed='true'] {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M5 .6 9.4 5 5 9.4.6 5Z' fill='%23fcd34d' stroke='%2309090b' stroke-opacity='.8'/%3E%3C/svg%3E");
+}
+.key-diamond[data-ease='hold'] {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M1.5 1.5h7v7h-7Z' fill='%23d4d4d8' stroke='%2309090b' stroke-opacity='.8'/%3E%3C/svg%3E");
+}
+.key-diamond[data-ease='hold']:hover {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M1.5 1.5h7v7h-7Z' fill='%23ffffff' stroke='%2309090b' stroke-opacity='.8'/%3E%3C/svg%3E");
+}
+.key-diamond[data-ease='hold'][aria-pressed='true'] {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M1.5 1.5h7v7h-7Z' fill='%23fcd34d' stroke='%2309090b' stroke-opacity='.8'/%3E%3C/svg%3E");
+}
+.key-diamond[data-ease='linear'] {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Ccircle cx='5' cy='5' r='3.9' fill='%23d4d4d8' stroke='%2309090b' stroke-opacity='.8'/%3E%3C/svg%3E");
+}
+.key-diamond[data-ease='linear']:hover {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Ccircle cx='5' cy='5' r='3.9' fill='%23ffffff' stroke='%2309090b' stroke-opacity='.8'/%3E%3C/svg%3E");
+}
+.key-diamond[data-ease='linear'][aria-pressed='true'] {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Ccircle cx='5' cy='5' r='3.9' fill='%23fcd34d' stroke='%2309090b' stroke-opacity='.8'/%3E%3C/svg%3E");
+}

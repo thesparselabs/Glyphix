@@ -1,6 +1,7 @@
 // Video clip timing: which source frame a video layer shows at comp time t, and which parts of
 // which files play as audio. Pure functions; the renderer and exporter both use them.
 import type { Comp, Doc, VideoClip } from './types';
+import { layerSpan } from './timing';
 
 export const clipLength = (c: VideoClip) => Math.max(0, c.out - c.in);
 
@@ -36,21 +37,22 @@ export interface AudioSegment {
  */
 export function audioSegments(doc: Doc): AudioSegment[] {
   const out: AudioSegment[] = [];
-  const end = doc.comp.duration;
   for (const l of doc.comp.layers) {
     if (l.type !== 'image' || !l.video || !l.visible) continue;
     const c = l.video;
     const len = clipLength(c);
     if (c.muted || c.volume <= 0 || len <= 0) continue;
+    // Heard only while the layer is on screen.
+    const [lo, end] = layerSpan(l, doc.comp);
     const push = (compStart: number, sourceStart: number, duration: number) => {
-      const a = Math.max(0, compStart);
+      const a = Math.max(lo, compStart);
       const b = Math.min(end, compStart + duration);
       if (b - a > 1e-6) out.push({ layerId: l.id, assetId: l.assetId, compStart: a, duration: b - a, sourceStart: sourceStart + (a - compStart), volume: c.volume });
     };
     if (!c.loop) push(c.start, c.in, len);
     else {
-      // Repetitions that overlap [0, end]; the first may start before 0.
-      const first = Math.floor((0 - c.start) / len);
+      // Repetitions that overlap [lo, end]; the first may start before lo.
+      const first = Math.floor((lo - c.start) / len);
       for (let k = first; c.start + k * len < end; k++) push(c.start + k * len, c.in, len);
     }
   }

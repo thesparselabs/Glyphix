@@ -28,6 +28,8 @@ const scr = async (x, y) =>
 
 await page.goto(base);
 await page.waitForFunction(() => window.__glyphix);
+// The canvas fits the comp once the renderer is up (slow on a busy machine); comp→page coordinates need it.
+await page.waitForFunction(() => window.__glyphix.view().zoom < 1, null, { timeout: 30000 });
 await page.waitForTimeout(1200);
 await page.keyboard.press('Space');
 await page.evaluate(() => window.__glyphix.setTime(4));
@@ -68,7 +70,7 @@ const padding = page.getByLabel('Padding');
 await padding.focus();
 await padding.fill('160');
 let l = (await state()).doc.comp.layers[3];
-check('frame / shadow / tilt applied', l.frame.kind === 'browser-light' && l.frame.url === 'acme.app/dashboard' && l.shadow?.blur === 140 && l.tilt.rotateX.static === 18);
+check('frame / shadow / tilt applied', l.frame.kind === 'browser-light' && l.frame.url === 'acme.app/dashboard' && l.shadow?.blur?.static === 140 && l.tilt.rotateX.static === 18);
 const card = l.width + 0; // width at padding 160
 check('padding fits the card', Math.abs((1920 - card) / 2 - 160) < 2 || Math.abs((1080 - (l.height + Math.round(Math.min(72, Math.max(22, l.width * 0.042))))) / 2 - 160) < 2, `width=${Math.round(l.width)}`);
 

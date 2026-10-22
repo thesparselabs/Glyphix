@@ -85,6 +85,24 @@ Dependency direction stays one-way: `doc-model` is still the root and stays free
 - **AAC in MP4:** add `@mediabunny/aac-encoder` (MPL-2.0, 4.7 MB) so MP4 sound plays in QuickTime; now Opus.
 - **C8, export in a Worker:** still deferred; exports block the main thread (~5–9 s for 5 s of 1080p).
 
+## Deferred to the end (user, 2026-10-18): Milestone G "Redact" and right-click menus
+
+Planned but not started; pick up before closing out the phases.
+- **Redact layer:** a placed box (move/resize/rotate/keyframes for free) that hides everything below it: solid
+  (safest, proposed default), pixelate, blur (warn: blurred text can be partly recovered). GPU pass like an
+  adjustment layer masked to the box; note in the export dialog that `.glyphix` files keep the original.
+- **Detect sensitive text:** OCR on the comp rendered at 2× in a Worker; list by type (emails, IPs, URLs,
+  keys/tokens, phones, Luhn-checked cards, other text) → one-undo redaction. Line boxes only, so spans inside a
+  line snap to word gaps found in the image.
+- **Engine test (2026-10-18, 1280×720 console screenshot, 13 sensitive items):** PaddleOCR via ppu-paddle-ocr
+  6.6.0 (PP-OCRv6 tiny, 6.4 MB models + onnxruntime-web 1.30.0 wasm 14 MB) read every email/IP/key well enough to
+  classify at 1×; Tesseract.js 7.0.0 missed the dark-sidebar email and garbled the IP and keys (6/13 exact at 1×,
+  10/13 at 2× for both). Recommendation: PaddleOCR, self-hosted, lazy-loaded, cached for offline.
+- **Right-click menus:** none today (the canvas blocks the browser menu, `src/editor/Overlay.tsx`). Proposed:
+  canvas + Layers panel menus (copy, paste, duplicate, delete, order, hide/lock, "redact this area"), keyboard
+  Shift+F10 / Menu key.
+- Open questions for then: OCR engine, default redaction style, menu scope.
+
 ## Explicitly NOT in Phase 2
 
 Keyframe / curve editor UI (Phase 3), OCR text *replacement*, desktop app, system fonts, per-glyph variable-axis

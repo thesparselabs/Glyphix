@@ -65,7 +65,7 @@ describe('frame counter tokens', () => {
   it('evaluate() substitutes per time in the render list', () => {
     const doc = createDemoDoc();
     const text = doc.comp.layers.find((l) => l.type === 'text')!;
-    const d = applyPatches(doc, [{ path: ['comp', 'layers', doc.comp.layers.indexOf(text), 'text'], value: 'F{frame}/{frames}' }]);
+    const d = applyPatches(doc, [{ path: ['comp', 'layers', doc.comp.layers.indexOf(text), 'text'], value: { static: 'F{frame}/{frames}' } }]);
     const shown = (t: number) => (evaluate(d, t).items.find((i) => i.kind === 'text') as { text: string }).text;
     const n = Math.round(d.comp.duration * d.comp.fps);
     expect(shown(0)).toBe(`F${'1'.padStart(String(n).length, '0')}/${n}`);
@@ -77,7 +77,7 @@ describe('planVideoToAscii', () => {
   function docWithVideo(): { doc: Doc; layer: ImageLayer } {
     const base = createDemoDoc();
     const img = base.comp.layers.find((l): l is ImageLayer => l.type === 'image')!;
-    const layer: ImageLayer = { ...img, assetId: 'vid-x', video: { ...defaultClip(2.5, base.comp), in: 0.5, out: 2.5, start: 1, loop: false }, width: 300, height: 200, radius: 16 };
+    const layer: ImageLayer = { ...img, assetId: 'vid-x', video: { ...defaultClip(2.5, base.comp), in: 0.5, out: 2.5, start: 1, loop: false }, width: 300, height: 200, radius: { static: 16 } };
     const doc = { ...base, comp: { ...base.comp, layers: base.comp.layers.map((l) => (l === img ? layer : l)) } };
     return { doc, layer };
   }
@@ -89,7 +89,7 @@ describe('planVideoToAscii', () => {
     expect([out.comp.width, out.comp.height]).toEqual([640, 360]);
     expect(out.comp.duration).toBeCloseTo(2);
     const l = out.comp.layers.find((x) => x.id === layer.id) as ImageLayer;
-    expect([l.width, l.height, l.radius]).toEqual([640, 360, 0]);
+    expect([l.width, l.height, l.radius]).toEqual([640, 360, { static: 0 }]);
     expect(l.video!.start).toBe(0);
     expect(l.transform.x).toEqual({ static: 320 });
     expect(l.effects.filter((e) => e.kind === 'ascii')).toHaveLength(1);

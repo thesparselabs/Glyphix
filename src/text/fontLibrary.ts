@@ -33,6 +33,8 @@ export interface LaidOutGlyph {
   /** Horizontal advance in em (including tracking). */
   advance: number;
   glyph: AtlasGlyph | null; // null = whitespace / empty outline
+  /** Shaped glyph id in the font (outlines by id: glyphPath). */
+  gid: number;
   /** Index of the source character (cluster) in the text. */
   cluster: number;
   line: number;
@@ -257,6 +259,7 @@ export class FontLibrary {
           y: p.yOffset / upem,
           advance: advance / upem,
           glyph: this.glyph(f, upem, infos[i]!.codepoint),
+          gid: infos[i]!.codepoint,
           cluster: lineStart + infos[i]!.cluster,
           line: li,
         });
@@ -298,6 +301,17 @@ export class FontLibrary {
       descender: f.descender,
       found: gid !== 0,
     };
+  }
+
+  /**
+   * Outline of a shaped glyph (by glyph id, as in LaidOutGlyph.gid): path commands in font units, y up
+   * (M/L/Q/C/Z). null when the font isn't loaded.
+   */
+  glyphPath(fontId: string, weight: number, gid: number): { commands: { type: string; values: number[] }[]; upem: number } | null {
+    const file = this.files.get(fontId);
+    if (!file) return null;
+    const f = this.instance(file, effectiveWeight(file.info, weight));
+    return { commands: f.font.glyphToJson(gid), upem: file.upem };
   }
 
   /** Atlas rect of one glyph of a loaded font (scramble charsets use this). */

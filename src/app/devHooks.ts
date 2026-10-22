@@ -1,5 +1,7 @@
 // Dev-only test hooks used by scripts/e2e-*.mjs. Not included in production builds.
 import { useEditor } from './store';
+import * as animActions from './animActions';
+import * as presetsDb from '@/persistence/presets';
 import { useView } from '@/editor/viewStore';
 import { layerBox } from '@/editor/geometry';
 import { measureText } from '@/editor/Overlay';
@@ -11,6 +13,8 @@ import { createBackend } from '@/render/backend';
 import { exportVideo, renderFrameBitmap, runExport } from '@/export/exporter';
 import { mixAudio } from '@/export/audioMix';
 import * as asciiText from '@/export/asciiText';
+import { docToLottie, exportLottie } from '@/export/lottie';
+import { evaluate } from '@/doc';
 import * as mediabunny from 'mediabunny';
 import { importVideo, videoMeta } from '@/video/videoAssets';
 import { createExactFrames } from '@/video/exactFrames';
@@ -45,10 +49,14 @@ window.__glyphix = {
     mixAudio,
     /** ASCII text export (e2e-ascii-text). */
     asciiText,
+    /** Lottie export (e2e-lottie): the converter, and the evaluator it is checked against. */
+    lottie: { docToLottie, exportLottie, evaluate },
     mediabunny,
     /** Register a video file as an asset (poster = `poster`), as video import will. */
     putVideoAsset: (id: string, poster: HTMLCanvasElement | ImageBitmap, file: Blob) => void assetStore.put(id, poster, { blob: file }),
   },
+  /** Animation presets: capture / apply / library (e2e-presets). */
+  presets: { ...animActions, ...presetsDb },
   setTime: (t: number) => useEditor.getState().setTime(t),
   select: (id: string | null) => useEditor.getState().select(id),
   box: (id: string) => {

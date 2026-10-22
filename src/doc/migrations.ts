@@ -69,6 +69,51 @@ const MIGRATIONS: Record<number, (doc: Json) => Json> = {
     const comp = doc.comp as Json & { layers: Json[] };
     return { ...doc, comp: { ...comp, layers: comp.layers.map((l) => (l.type === 'image' ? { video: null, ...l } : l)) } };
   },
+  // v6 → v7: layers gain in/out points (on for the whole comp, as before).
+  6: (doc) => {
+    const comp = doc.comp as Json & { layers: Json[] };
+    return { ...doc, comp: { ...comp, layers: comp.layers.map((l) => ({ timing: { in: 0, out: null }, ...l })) } };
+  },
+  // v7 → v8: a new easing kind (bounce); nothing to change.
+  7: (doc) => doc,
+  // v8 → v9: colours, text, shadows, borders, outlines, gradients, radius and effect colours can be animated:
+  // their values become static Props (same values, so renders are unchanged).
+  8: (doc) => {
+    const comp = doc.comp as Json & { layers: Json[] };
+    const st = (v: unknown) => (v === undefined ? v : { static: v });
+    const wrap = (o: unknown, keys: string[]): unknown => {
+      if (!o || typeof o !== 'object') return o;
+      const out: Json = { ...(o as Json) };
+      for (const k of keys) if (k in out) out[k] = st(out[k]);
+      return out;
+    };
+    const fill = (f: unknown): unknown => {
+      if (!f || typeof f !== 'object') return f;
+      const x = f as Json;
+      if (x.kind === 'solid') return wrap(x, ['color']);
+      if (x.kind === 'linear') return { ...wrap(x, ['angle']) as Json, stops: ((x.stops as Json[] | undefined) ?? []).map((s) => wrap(s, ['offset', 'color'])) };
+      if (x.kind === 'mesh') return { ...x, points: ((x.points as Json[] | undefined) ?? []).map((p) => wrap(p, ['x', 'y', 'color'])) };
+      return x;
+    };
+    const effect = (e: Json): Json => ({ ...e, colors: Object.fromEntries(Object.entries((e.colors as Json | undefined) ?? {}).map(([k, c]) => [k, st(c)])) });
+    const layer = (l: Json): Json => {
+      const out: Json = { ...l, effects: ((l.effects as Json[] | undefined) ?? []).map(effect) };
+      if (l.type === 'background') out.fill = fill(l.fill);
+      if (l.type === 'image') {
+        out.radius = st(l.radius);
+        out.shadow = wrap(l.shadow, ['blur', 'offsetX', 'offsetY', 'color']);
+        out.border = wrap(l.border, ['width', 'color']);
+      }
+      if (l.type === 'text') {
+        Object.assign(out, wrap(l, ['text', 'color', 'glowColor']));
+        out.gradient = wrap(l.gradient, ['angle', 'from', 'to']);
+        out.outline = wrap(l.outline, ['width', 'color']);
+        out.shadow = wrap(l.shadow, ['offsetX', 'offsetY', 'blur', 'color']);
+      }
+      return out;
+    };
+    return { ...doc, comp: { ...comp, layers: comp.layers.map(layer) } };
+  },
   // v5 → v6: effects gain text settings; existing ASCII effects keep their square cells.
   5: (doc) => {
     const comp = doc.comp as Json & { layers: Json[] };

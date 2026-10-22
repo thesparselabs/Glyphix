@@ -22,19 +22,19 @@ export function isAnimated(prop: Prop<unknown>): boolean {
 
 const near = (a: number, b: number, eps: number) => Math.abs(a - b) <= eps;
 
-export function keyAt(prop: Prop<number>, t: number, eps: number): Keyframe<number> | null {
+export function keyAt<V>(prop: Prop<V>, t: number, eps: number): Keyframe<V> | null {
   if ('static' in prop) return null;
   return prop.track.keys.find((k) => near(k.t, t, eps)) ?? null;
 }
 
 /** Set the value at `t`: a static prop stays static; an animated one gets (or updates) a key at `t`. */
-export function setValueAt(prop: Prop<number>, t: number, v: number, eps: number): Prop<number> {
+export function setValueAt<V>(prop: Prop<V>, t: number, v: V, eps: number): Prop<V> {
   if ('static' in prop) return { static: v };
   return addKey(prop, t, v, eps);
 }
 
 /** Add (or replace) a key at `t`. A static prop becomes animated with this one key. */
-export function addKey(prop: Prop<number>, t: number, v: number, eps: number): Prop<number> {
+export function addKey<V>(prop: Prop<V>, t: number, v: V, eps: number): Prop<V> {
   const keys = 'static' in prop ? [] : prop.track.keys.filter((k) => !near(k.t, t, eps));
   const out = ('static' in prop ? null : prop.track.keys.find((k) => near(k.t, t, eps))?.out) ?? Easings.easeInOutCubic;
   keys.push({ t, v, out });
@@ -43,7 +43,7 @@ export function addKey(prop: Prop<number>, t: number, v: number, eps: number): P
 }
 
 /** Remove the key at `t`; the last key removed turns the prop back into a static value. */
-export function removeKey(prop: Prop<number>, t: number, eps: number): Prop<number> {
+export function removeKey<V>(prop: Prop<V>, t: number, eps: number): Prop<V> {
   if ('static' in prop) return prop;
   const hit = prop.track.keys.find((k) => near(k.t, t, eps));
   const keys = prop.track.keys.filter((k) => k !== hit);

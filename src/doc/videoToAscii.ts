@@ -1,6 +1,7 @@
 // "Turn into ASCII": the document changes that make a video/GIF layer a ready-to-export ASCII piece.
 // Pure: given the doc, it returns the patches; the app applies them as one undo step.
 import { applyAsciiPreset, asciiPreset, ASCII_PRESETS, type AsciiPreset } from './asciiPresets';
+import { still } from './animate';
 import { createEffect } from './effects';
 import { clipLength } from './video';
 import type { Doc, ImageLayer, VideoClip } from './types';
@@ -63,7 +64,7 @@ export function planVideoToAscii(
       { path: [...base, 'height'], value: height },
       { path: [...base, 'crop'], value: { x: 0, y: 0, w: 1, h: 1 } },
       { path: [...base, 'transform'], value: { ...layer.transform, x: { static: width / 2 }, y: { static: height / 2 }, scale: { static: 1 }, rotation: { static: 0 } } },
-      { path: [...base, 'radius'], value: 0 },
+      { path: [...base, 'radius'], value: still(0) },
       { path: [...base, 'shadow'], value: null },
       { path: [...base, 'border'], value: null },
       { path: [...base, 'effects'], value: at >= 0 ? effects.map((e, i) => (i === at ? styled : e)) : [...effects, styled] },

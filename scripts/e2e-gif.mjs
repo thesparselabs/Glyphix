@@ -121,7 +121,7 @@ for (const forceWebGL of kinds) {
       Object.assign(doc.comp, { width: 320, height: 180, duration: 2 });
       doc.comp.layers = [{
         ...src, id: 'V', assetId: id, video: defaultClip(2, doc.comp), crop: { x: 0, y: 0, w: 1, h: 1 },
-        width: 320, height: 180, radius: 0, shadow: null, border: null, effects: [],
+        width: 320, height: 180, radius: { static: 0 }, shadow: null, border: null, effects: [],
         frame: { kind: 'none', url: '' },
         tilt: { rotateX: { static: 0 }, rotateY: { static: 0 }, perspective: src.tilt.perspective },
         motion: { enter: null, exit: null, loop: null }, opacity: { static: 1 },
@@ -157,7 +157,7 @@ for (const forceWebGL of kinds) {
     // Clip trimmed to 0.5..2 s (frames 6..23), looping: comp 1.55 s is 0.05 s into the second pass.
     doc.comp.layers = [{
       ...src, id: 'V', assetId: id, video: { ...defaultClip(2, doc.comp), in: 0.5, out: 2, loop: true }, crop: { x: 0, y: 0, w: 1, h: 1 },
-      width: 320, height: 180, radius: 0, shadow: null, border: null, effects: [], frame: { kind: 'none', url: '' },
+      width: 320, height: 180, radius: { static: 0 }, shadow: null, border: null, effects: [], frame: { kind: 'none', url: '' },
       tilt: { rotateX: { static: 0 }, rotateY: { static: 0 }, perspective: src.tilt.perspective },
       motion: { enter: null, exit: null, loop: null }, opacity: { static: 1 },
       transform: { x: { static: 160 }, y: { static: 90 }, scale: { static: 1 }, rotation: { static: 0 } },

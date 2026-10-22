@@ -30,6 +30,18 @@ for (const tab of ['Exit', 'Loop']) {
   await page.waitForTimeout(300);
   await audit(`animation ${tab.toLowerCase()} tab`);
 }
+// Saved animations: save the headline's animation, then audit the tab with a preset listed (and one being renamed).
+await page.getByRole('tab', { name: 'Saved' }).click();
+await page.getByLabel('Preset name').fill('Axe preset');
+await page.getByRole('button', { name: /^Save/ }).click();
+await page.getByRole('button', { name: 'Apply Axe preset' }).waitFor();
+await page.waitForTimeout(300);
+await audit('animation: saved presets');
+await page.getByRole('button', { name: 'Rename Axe preset' }).click();
+await page.waitForTimeout(200);
+await audit('animation: saved presets (renaming)');
+await page.keyboard.press('Escape');
+await page.getByRole('tab', { name: /Enter/ }).click();
 await page.getByRole('switch', { name: 'Outline' }).click();
 await page.getByRole('switch', { name: 'Text shadow' }).click();
 await page.getByRole('group', { name: 'Fill type' }).getByRole('button', { name: 'Gradient' }).click();
@@ -71,6 +83,28 @@ if (hasFixture) {
 } else console.log('SKIP video layer — run scripts/make-video-fixtures.sh');
 // ASCII Studio: the ASCII card (look, font, custom characters) on the screenshot layer, then the export
 // dialog's ASCII text section.
+// Timeline: property rows open, a keyframe selected, the easing editor, then the panel collapsed.
+await page.getByRole('button', { name: 'Show Screenshot properties' }).click();
+await page.getByRole('list', { name: 'Screenshot properties' }).getByRole('button', { name: /^Opacity keyframe at 0\.80/ }).click();
+await page.waitForTimeout(300);
+await audit('timeline: properties open, keyframe selected');
+// Easing editor on the first opacity key: curve with handles, then the spring controls.
+await page.getByRole('list', { name: 'Screenshot properties' }).getByRole('button', { name: /^Opacity keyframe at 0\.00/ }).click();
+await page.keyboard.press('e');
+const easingPresets = page.getByRole('group', { name: 'Easing presets' });
+await easingPresets.getByRole('button', { name: 'CSS ease', exact: true }).click();
+await page.waitForTimeout(400);
+await audit('easing editor: curve handles');
+await easingPresets.getByRole('button', { name: 'Spring', exact: true }).click();
+await page.waitForTimeout(300);
+await audit('easing editor: spring');
+await page.keyboard.press('Escape');
+await page.waitForTimeout(300);
+await page.getByRole('button', { name: 'Collapse timeline' }).click();
+await page.waitForTimeout(300);
+await audit('timeline collapsed');
+await page.getByRole('button', { name: 'Expand timeline' }).click();
+await page.keyboard.press('Escape');
 await page.evaluate(() => window.__glyphix.select('shot'));
 await page.getByRole('button', { name: 'Add effect' }).click();
 await page.getByRole('menuitem', { name: /^ASCII/ }).click();
@@ -84,5 +118,11 @@ await dialog.waitFor();
 await dialog.getByRole('group', { name: 'Format' }).getByRole('button', { name: 'ASCII text', exact: true }).click();
 await page.waitForTimeout(500);
 await audit('export dialog: ASCII text');
+await dialog.getByRole('group', { name: 'Format' }).getByRole('button', { name: 'Lottie', exact: true }).click();
+await page.waitForTimeout(300);
+await audit('export dialog: Lottie');
+await dialog.getByRole('button', { name: /^Export / }).click();
+await dialog.getByRole('list', { name: /Left out/ }).waitFor({ timeout: 60000 });
+await audit('export dialog: Lottie result with "Left out" list');
 await browser.close();
 process.exit(failures ? 1 : 0);

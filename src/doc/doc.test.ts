@@ -5,7 +5,7 @@ import { assignUnits, awayness, easingLUT, evaluate, glyphProgress, glyphRanks, 
 import { History, makeInsert, makeMove, makeRemove, makeSet } from './history';
 import { offsetProp } from './props';
 import { seededPermutation } from './random';
-import { REST_POSE, type Doc, type GlyphAnimator } from './types';
+import { REST_POSE, type Doc, type GlyphAnimator, type TextLayer } from './types';
 
 describe('easing', () => {
   it('bezier endpoints and linear identity', () => {
@@ -105,11 +105,11 @@ describe('history', () => {
   it('undo/redo restores exact docs', () => {
     const doc = createDemoDoc('A');
     const h = new History<Doc>(doc);
-    h.commit(makeSet(h.current, 'Edit text', [{ path, value: 'B' }]));
-    expect((h.current.comp.layers[2] as { text: string }).text).toBe('B');
+    h.commit(makeSet(h.current, 'Edit text', [{ path, value: { static: 'B' } }]));
+    expect((h.current.comp.layers[2] as TextLayer).text).toEqual({ static: 'B' });
     expect(h.undo()).toEqual(doc);
     h.redo();
-    expect((h.current.comp.layers[2] as { text: string }).text).toBe('B');
+    expect((h.current.comp.layers[2] as TextLayer).text).toEqual({ static: 'B' });
   });
   it('coalesces drags into one step', () => {
     const doc = createDemoDoc();

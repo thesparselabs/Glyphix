@@ -1,5 +1,5 @@
 // Dominant colours from an image (seeded k-means in RGB), and background suggestions built from them.
-import { mulberry32, type BackgroundFill, type Color } from '@/doc';
+import { mulberry32, type BackgroundFill, type Color, type Resolved } from '@/doc';
 
 export type RGB = [number, number, number];
 
@@ -86,7 +86,7 @@ function vivid(c: RGB, lightness: number, minSat = 0.55): Color {
 }
 
 /** Background suggestions derived from a screenshot's palette. */
-export function suggestBackgrounds(palette: { color: RGB; weight: number }[]): BackgroundFill[] {
+export function suggestBackgrounds(palette: { color: RGB; weight: number }[]): Resolved<BackgroundFill>[] {
   if (!palette.length) return [];
   // Prefer the most saturated colours: screenshots are mostly neutral UI chrome.
   const bySat = [...palette].sort((a, b) => toHsl(b.color)[1] - toHsl(a.color)[1]).map((p) => p.color);

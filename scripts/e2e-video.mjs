@@ -52,7 +52,7 @@ await page.evaluate((id) => {
   const i = ed.doc.comp.layers.findIndex((l) => l.id === id);
   const p = (k, value) => ({ path: ['comp', 'layers', i, k], value });
   ed.set('test layout', [
-    p('width', 1920), p('height', 1080), p('radius', 0), p('shadow', null), p('motion', { enter: null, exit: null, loop: null }),
+    p('width', 1920), p('height', 1080), p('radius', { static: 0 }), p('shadow', null), p('motion', { enter: null, exit: null, loop: null }),
     p('transform', { x: { static: 960 }, y: { static: 540 }, scale: { static: 1 }, rotation: { static: 0 } }),
   ]);
   // Hide the headline so it doesn't cover the strip.

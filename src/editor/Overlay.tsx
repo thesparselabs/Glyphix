@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from 'react';
-import { isPlaced, restTime, offsetProp, sampleProp, scaleProp, type Doc, type ImageLayer, type Layer, type Patch, type TextLayer } from '@/doc';
+import { isPlaced, restTime, offsetProp, sampleProp, sampleValue, scaleProp, setValueAt, snapToFrame, type Doc, type ImageLayer, type Layer, type Patch, type TextLayer } from '@/doc';
 import { fontLibrary } from '@/text/fontLibrary';
 import { layerIndex, useEditor } from '@/app/store';
 import { toComp, toScreen, useView } from './viewStore';
@@ -22,8 +22,8 @@ import {
 } from './geometry';
 import { frameBarHeight } from '@/styling/frames';
 
-export const measureText: MeasureText = (l) => {
-  const layout = fontLibrary.layout(l);
+export const measureText: MeasureText = (l, t) => {
+  const layout = fontLibrary.layout({ ...l, text: sampleValue(l.text, t) });
   return layout ? { width: layout.width * l.fontSize, height: layout.height * l.fontSize } : null;
 };
 
@@ -371,7 +371,8 @@ function TextEditor({ doc, id }: { doc: Doc; id: string }) {
   if (!layer || layer.type !== 'text' || !box) return null;
 
   const scale = sampleProp(layer.transform.scale, time);
-  const lines = layer.text.split('\n').length;
+  const text = sampleValue(layer.text, time);
+  const lines = text.split('\n').length;
   const c = toScreen(view, box.cx, box.cy);
   const w = Math.max(box.w, layer.fontSize) * view.zoom + 8;
   const h = box.h * view.zoom;
@@ -381,11 +382,13 @@ function TextEditor({ doc, id }: { doc: Doc; id: string }) {
     <textarea
       ref={taRef}
       aria-label="Edit text"
-      value={layer.text}
+      value={text}
       spellCheck={false}
       onChange={(e) => {
+        // Animated text: edits the key at the playhead.
         const s = useEditor.getState();
-        s.set('Edit text', [{ path: ['comp', 'layers', layerIndex(s.doc, id), 'text'], value: e.target.value }]);
+        const value = setValueAt(layer.text, snapToFrame(s.time, s.doc.comp.fps), e.target.value, 0.5 / s.doc.comp.fps);
+        s.set('Edit text', [{ path: ['comp', 'layers', layerIndex(s.doc, id), 'text'], value }]);
       }}
       onBlur={close}
       onKeyDown={(e) => {

@@ -63,7 +63,27 @@ check('restored project starts with empty history', await page.getByRole('button
 
 // An old (schema v1) project in storage is migrated on load.
 await page.evaluate(async () => {
+  // Pre-v9 documents hold plain values where v9 has static Props (numbers were already Props): flatten those fields.
   const doc = JSON.parse(JSON.stringify(window.__glyphix.state().doc));
+  const un = (v) => (v && typeof v === 'object' && 'static' in v ? v.static : v);
+  const flat = (o, keys) => o && keys.forEach((k) => k in o && (o[k] = un(o[k])));
+  for (const l of doc.comp.layers) {
+    for (const e of l.effects ?? []) for (const k of Object.keys(e.colors ?? {})) e.colors[k] = un(e.colors[k]);
+    if (l.type === 'background') {
+      flat(l.fill, ['color', 'angle']);
+      l.fill.stops?.forEach((s) => flat(s, ['offset', 'color']));
+      l.fill.points?.forEach((p) => flat(p, ['x', 'y', 'color']));
+    } else if (l.type === 'image') {
+      flat(l, ['radius']);
+      flat(l.shadow, ['blur', 'offsetX', 'offsetY', 'color']);
+      flat(l.border, ['width', 'color']);
+    } else if (l.type === 'text') {
+      flat(l, ['text', 'color', 'glowColor']);
+      flat(l.gradient, ['angle', 'from', 'to']);
+      flat(l.outline, ['width', 'color']);
+      flat(l.shadow, ['offsetX', 'offsetY', 'blur', 'color']);
+    }
+  }
   doc.schemaVersion = 1;
   doc.id = 'proj-v1-fixture';
   doc.name = 'Old project';
@@ -85,7 +105,7 @@ await page.evaluate(async () => {
 await page.reload();
 await ready();
 const migrated = await page.evaluate(() => window.__glyphix.state().doc);
-check('v1 project migrated on load', migrated.id === 'proj-v1-fixture' && migrated.schemaVersion === 6 && Array.isArray(migrated.comp.layers[0].effects) && migrated.comp.layers[1].motion?.exit === null && migrated.comp.layers[2].weight === 400, `schema ${migrated.schemaVersion}`);
+check('v1 project migrated on load', migrated.id === 'proj-v1-fixture' && migrated.schemaVersion === 9 && migrated.comp.layers[2].timing?.out === null && Array.isArray(migrated.comp.layers[0].effects) && migrated.comp.layers[1].motion?.exit === null && migrated.comp.layers[2].weight === 400, `schema ${migrated.schemaVersion}`);
 
 // A missing image warns but still opens the document.
 await page.evaluate(async (id) => {

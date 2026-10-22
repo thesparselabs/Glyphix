@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import {
+  applyPatches,
   createDemoDoc,
   History,
   makeInsert,
@@ -31,8 +32,8 @@ interface EditorState {
   editingTextId: string | null;
   canUndo: boolean;
   canRedo: boolean;
-  /** Hover preview of a motion preset on one layer; shown on the canvas, never saved. */
-  preview: { layerId: string; motion: Motion } | null;
+  /** Hover preview of a motion preset (or a whole saved animation: layer-relative `patches`) on one layer; shown on the canvas, never saved. */
+  preview: { layerId: string; motion: Motion; patches?: Patch[] } | null;
 
   commit(entry: HistoryEntry): void;
   /** Convenience: set paths on the doc as one undoable step. */
@@ -50,7 +51,7 @@ interface EditorState {
   select(id: string | null): void;
   setCrop(id: string | null): void;
   setEditingText(id: string | null): void;
-  setPreview(preview: { layerId: string; motion: Motion } | null): void;
+  setPreview(preview: EditorState['preview']): void;
   /** Add a text layer at the centre of the comp and select it. */
   addText(): void;
   /** Add an adjustment layer above the selected layer (or on top) and select it. */
@@ -183,9 +184,11 @@ export const useEditor = create<EditorState>((set, get) => ({
 export function previewDoc(doc: Doc, preview: EditorState['preview']): Doc {
   if (!preview) return doc;
   const i = layerIndex(doc, preview.layerId);
-  const layer = doc.comp.layers[i];
-  if (!isPlaced(layer)) return doc;
+  let layer = doc.comp.layers[i];
+  if (!layer) return doc;
+  if (preview.patches?.length) layer = applyPatches(layer, preview.patches);
+  else if (!isPlaced(layer)) return doc;
   const layers = doc.comp.layers.slice();
-  layers[i] = { ...layer, motion: preview.motion };
+  layers[i] = isPlaced(layer) && !preview.patches?.length ? { ...layer, motion: preview.motion } : layer;
   return { ...doc, comp: { ...doc.comp, layers } };
 }

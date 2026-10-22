@@ -1,6 +1,7 @@
 // Effects: a stack of GPU passes on a layer, or on everything below an adjustment layer.
 // The registry is the single source of truth for each effect's parameters: their ranges and
 // defaults drive the UI, new effects, and the renderer's uniforms.
+import { sampleValue } from './animate';
 import type { Color, Effect, EffectKind, Prop } from './types';
 
 export interface EffectParamDef {
@@ -247,7 +248,7 @@ export function createEffect(kind: EffectKind): Effect {
     kind,
     enabled: true,
     params: Object.fromEntries(d.params.map((q) => [q.key, { static: q.default } as Prop<number>])),
-    colors: Object.fromEntries(d.colors.map((c) => [c.key, [...c.default] as Color])),
+    colors: Object.fromEntries(d.colors.map((c) => [c.key, { static: [...c.default] as Color }])),
     text: Object.fromEntries((d.texts ?? []).map((x) => [x.key, x.default])),
   };
 }
@@ -271,10 +272,15 @@ export function resolveEffects(effects: readonly Effect[], t: number, sample: (p
     const params: Record<string, number> = {};
     for (const q of d.params) {
       const prop = e.params[q.key];
-      params[q.key] = prop ? sample(prop, t) : q.default;
+      // Animated values are clamped (an overshooting curve must not leave the range); a static value is used as
+      // saved, even outside the slider's range (presets and old projects rely on that).
+      params[q.key] = !prop ? q.default : 'track' in prop ? Math.min(q.max, Math.max(q.min, sample(prop, t))) : prop.static;
     }
     const colors: Record<string, Color> = {};
-    for (const c of d.colors) colors[c.key] = e.colors[c.key] ?? c.default;
+    for (const c of d.colors) {
+      const prop = e.colors[c.key];
+      colors[c.key] = prop ? sampleValue(prop, t) : c.default;
+    }
     const text: Record<string, string> = {};
     for (const x of d.texts ?? []) text[x.key] = e.text?.[x.key] ?? x.default;
     out.push({ id: e.id, kind: e.kind, params, colors, text });

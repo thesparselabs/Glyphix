@@ -99,7 +99,7 @@ for (const forceWebGL of [false, true]) {
             g.drawImage(bmp, 0, 0);
             const px = g.getImageData(0, 0, bmp.width, bmp.height).data;
             const lum = (r, gg, bb) => 0.2126 * r + 0.7152 * gg + 0.0722 * bb;
-            const bgc = doc.comp.layers.at(-1).effects[0].colors.bg;
+            const bgc = d.sampleValue(doc.comp.layers.at(-1).effects[0].colors.bg, t);
             const bgL = lum(bgc[0] * 255, bgc[1] * 255, bgc[2] * 255);
             const L = [];
             const chars = [];

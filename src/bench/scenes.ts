@@ -1,4 +1,4 @@
-import { createAdjustmentLayer, createDemoDoc, createEffect, defaultEnter, defaultExit, defaultLoop, Easings, REST_POSE, type Doc, type ImageLayer, type TextLayer } from '@/doc';
+import { createAdjustmentLayer, createDemoDoc, createEffect, defaultEnter, defaultExit, defaultLoop, Easings, REST_POSE, stillOutline, stillShadow, stillTextShadow, type Doc, type ImageLayer, type TextLayer } from '@/doc';
 import { assetStore } from '@/assets/assetStore';
 import { createDemoScreenshot } from '@/assets/demoScreenshot';
 
@@ -33,7 +33,7 @@ function glyphScene(n: number, kinetic = false): Doc {
   const doc = createDemoDoc();
   doc.name = `${n} glyphs`;
   const headline = doc.comp.layers.find((l) => l.id === 'headline') as TextLayer;
-  headline.text = textOfLength(n, n > 500 ? 64 : 44);
+  headline.text = { static: textOfLength(n, n > 500 ? 64 : 44) };
   headline.fontSize = n > 500 ? 26 : 40;
   headline.transform.y = { static: 540 };
   headline.align = 'center';
@@ -56,8 +56,8 @@ function glyphScene(n: number, kinetic = false): Doc {
       exit: { ...defaultExit('scatter-out'), duration: 2.5 },
       loop: defaultLoop('wave', doc.comp),
     };
-    headline.outline = { width: 2, color: [0, 0, 0, 1] };
-    headline.shadow = { offsetX: 0, offsetY: 4, blur: 6, color: [0, 0, 0, 0.5] };
+    headline.outline = stillOutline({ width: 2, color: [0, 0, 0, 1] });
+    headline.shadow = stillTextShadow({ offsetX: 0, offsetY: 4, blur: 6, color: [0, 0, 0, 0.5] });
   }
   doc.comp.layers = doc.comp.layers.filter((l) => l.id !== 'shot');
   return doc;
@@ -83,8 +83,8 @@ function bigScene(): Doc {
       assetId: id,
       width: 1920,
       height: 1080,
-      radius: 24,
-      shadow: { blur: 80, offsetX: 0, offsetY: 40, color: [0, 0, 0, 0.5] },
+      radius: { static: 24 },
+      shadow: stillShadow({ blur: 80, offsetX: 0, offsetY: 40, color: [0, 0, 0, 0.5] }),
       opacity: { static: 1 },
       transform: {
         x: { track: { keys: [{ t: 0, v: 900 + i * 200, out: Easings.easeInOutCubic }, { t: 2.5, v: 1100 + i * 200, out: Easings.easeInOutCubic }, { t: 5, v: 900 + i * 200, out: Easings.linear }] } },

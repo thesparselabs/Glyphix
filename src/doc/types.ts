@@ -4,14 +4,16 @@
 import type { Motion } from './motion';
 
 /** Bump when the saved document shape changes, and add a migration in migrations.ts. */
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 9;
 
 export type Easing =
   | { kind: 'linear' }
   | { kind: 'hold' }
   | { kind: 'bezier'; x1: number; y1: number; x2: number; y2: number }
   | { kind: 'spring'; mass: number; stiffness: number; damping: number }
-  | { kind: 'steps'; n: number };
+  | { kind: 'steps'; n: number }
+  /** Falls onto the target and bounces `n` times, each bounce a quarter of the height of the one before. */
+  | { kind: 'bounce'; n: number };
 
 export interface Keyframe<V> {
   /** Seconds from comp start. */
@@ -31,8 +33,8 @@ export type Prop<V> = { static: V } | { track: Track<V> };
 export type Color = [r: number, g: number, b: number, a: number];
 
 export interface GradientStop {
-  offset: number;
-  color: Color;
+  offset: Prop<number>;
+  color: Prop<Color>;
 }
 
 export type EffectKind =
@@ -56,15 +58,23 @@ export interface Effect {
   kind: EffectKind;
   enabled: boolean;
   params: Record<string, Prop<number>>;
-  colors: Record<string, Color>;
+  colors: Record<string, Prop<Color>>;
   /** Text settings (ASCII: custom charset, font id). */
   text: Record<string, string>;
+}
+
+/** When a layer is on screen, in comp seconds: from `in` until `out` (null = until the comp ends). */
+export interface LayerTiming {
+  in: number;
+  out: number | null;
 }
 
 export interface LayerBase {
   id: string;
   name: string;
   visible: boolean;
+  /** Backgrounds ignore it (always on). */
+  timing: LayerTiming;
   locked: boolean;
   opacity: Prop<number>;
   /** Applied in order, bottom of the list last. */
@@ -82,15 +92,15 @@ export interface Transform {
 
 export interface MeshPoint {
   /** Position in comp-normalised coords (0..1). */
-  x: number;
-  y: number;
-  color: Color;
+  x: Prop<number>;
+  y: Prop<number>;
+  color: Prop<Color>;
 }
 
 export type BackgroundFill =
-  | { kind: 'solid'; color: Color }
+  | { kind: 'solid'; color: Prop<Color> }
   /** angle in degrees (0 = left→right, 90 = top→bottom); up to 4 stops are rendered. */
-  | { kind: 'linear'; angle: number; stops: GradientStop[] }
+  | { kind: 'linear'; angle: Prop<number>; stops: GradientStop[] }
   /** Smoothly blended colour points (up to 4). */
   | { kind: 'mesh'; points: MeshPoint[] }
   /** Image covering the comp, optionally blurred and dimmed. */
@@ -102,10 +112,10 @@ export interface BackgroundLayer extends LayerBase {
 }
 
 export interface Shadow {
-  blur: number;
-  offsetX: number;
-  offsetY: number;
-  color: Color;
+  blur: Prop<number>;
+  offsetX: Prop<number>;
+  offsetY: Prop<number>;
+  color: Prop<Color>;
 }
 
 /** Rectangle in source-normalised coordinates (0..1, origin top-left). */
@@ -127,8 +137,8 @@ export interface Frame {
 }
 
 export interface Border {
-  width: number;
-  color: Color;
+  width: Prop<number>;
+  color: Prop<Color>;
 }
 
 /** 3D tilt of a flat layer, degrees. Perspective distance in comp px. */
@@ -164,7 +174,7 @@ export interface ImageLayer extends LayerBase {
   width: number;
   height: number;
   transform: Transform;
-  radius: number;
+  radius: Prop<number>;
   shadow: Shadow | null;
   border: Border | null;
   frame: Frame;
@@ -248,36 +258,37 @@ export interface GlyphAnimator {
 
 export interface TextOutline {
   /** Comp px at layer scale 1; limited to about a fifth of the font size. */
-  width: number;
-  color: Color;
+  width: Prop<number>;
+  color: Prop<Color>;
 }
 
 export interface TextShadow {
-  offsetX: number;
-  offsetY: number;
+  offsetX: Prop<number>;
+  offsetY: Prop<number>;
   /** Softness in px; limited to about a fifth of the font size. */
-  blur: number;
-  color: Color;
+  blur: Prop<number>;
+  color: Prop<Color>;
 }
 
 /** Linear gradient across the text block; replaces the solid colour when set. */
 export interface TextGradient {
   /** Degrees (0 = left→right, 90 = top→bottom). */
-  angle: number;
-  from: Color;
-  to: Color;
+  angle: Prop<number>;
+  from: Prop<Color>;
+  to: Prop<Color>;
 }
 
 export interface TextLayer extends LayerBase {
   type: 'text';
-  text: string;
+  /** Animated text switches at its keys (hold). */
+  text: Prop<string>;
   fontId: string;
   /** CSS weight (100..900); clamped to what the font offers. */
   weight: number;
   fontSize: number;
   /** Multiple of the font's natural line height. */
   lineHeight: number;
-  color: Color;
+  color: Prop<Color>;
   gradient: TextGradient | null;
   outline: TextOutline | null;
   shadow: TextShadow | null;
@@ -290,7 +301,7 @@ export interface TextLayer extends LayerBase {
   motion: Motion;
   /** SDF glow strength 0..1 (animatable). */
   glow: Prop<number>;
-  glowColor: Color;
+  glowColor: Prop<Color>;
 }
 
 /** Applies its effects to everything below it; opacity mixes the result with the unprocessed image. */

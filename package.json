@@ -12,7 +12,7 @@
     "test:watch": "vitest",
     "smoke": "node scripts/smoke.mjs",
     "bench": "node scripts/bench.mjs",
-    "e2e": "node scripts/e2e-editor.mjs && node scripts/e2e-styling.mjs && node scripts/e2e-motion.mjs && node scripts/e2e-persistence.mjs && node scripts/e2e-projects.mjs && node scripts/e2e-export.mjs && node scripts/e2e-keyboard.mjs && node scripts/e2e-typography.mjs && node scripts/e2e-effects.mjs && node scripts/e2e-ascii.mjs && node scripts/e2e-video-assets.mjs && node scripts/e2e-video.mjs && node scripts/e2e-export-v2.mjs && node scripts/e2e-ascii-glyphs.mjs && node scripts/e2e-ascii-text.mjs && node scripts/e2e-gif.mjs"
+    "e2e": "node scripts/e2e-editor.mjs && node scripts/e2e-styling.mjs && node scripts/e2e-motion.mjs && node scripts/e2e-persistence.mjs && node scripts/e2e-projects.mjs && node scripts/e2e-export.mjs && node scripts/e2e-keyboard.mjs && node scripts/e2e-typography.mjs && node scripts/e2e-effects.mjs && node scripts/e2e-ascii.mjs && node scripts/e2e-video-assets.mjs && node scripts/e2e-video.mjs && node scripts/e2e-export-v2.mjs && node scripts/e2e-ascii-glyphs.mjs && node scripts/e2e-ascii-text.mjs && node scripts/e2e-gif.mjs && node scripts/e2e-timeline.mjs && node scripts/e2e-easing.mjs && node scripts/e2e-animate.mjs && node scripts/e2e-presets.mjs && node scripts/e2e-lottie.mjs"
   },
   "dependencies": {
     "@base-ui/react": "1.8.0",
@@ -36,6 +36,7 @@
     "@types/react-dom": "^19.3.0",
     "@types/three": "^0.186.0",
     "@vitejs/plugin-react": "^6.1.2",
+    "lottie-web": "5.13.0",
     "playwright-core": "^1.64.0",
     "tailwindcss": "^4.3.3",
     "typescript": "~5.9.3",

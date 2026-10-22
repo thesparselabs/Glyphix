@@ -24,7 +24,8 @@ export interface AABB {
 }
 
 /** Text block size in px at scale 1, or null if the font isn't ready. */
-export type MeasureText = (layer: Extract<Layer, { type: 'text' }>) => { width: number; height: number } | null;
+/** Size of a text layer's block at time `t` (animated text changes at its keys). */
+export type MeasureText = (layer: Extract<Layer, { type: 'text' }>, t: number) => { width: number; height: number } | null;
 
 const DEG = Math.PI / 180;
 
@@ -48,7 +49,7 @@ export function layerBox(layer: Layer, t: number, measure: MeasureText, frameHei
     // The frame bar sits above the image; the layer's anchor stays at the image+bar centre.
     return { cx, cy, w: layer.width * s, h: (layer.height + bar) * s, rotation };
   }
-  const m = measure(layer);
+  const m = measure(layer, t);
   if (!m) return null;
   return { cx, cy, w: m.width * s, h: m.height * s, rotation };
 }
